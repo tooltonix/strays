@@ -185,7 +185,8 @@
   });
   playfield.addEventListener('pointerdown', (event) => {
     event.preventDefault();
-    playfield.focus();
+    // preventScroll: focusing a partly hidden canvas must not scroll the page
+    playfield.focus({ preventScroll: true });
     jump();
   });
 

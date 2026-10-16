@@ -27,7 +27,8 @@ canvas {
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 6px;
-  touch-action: manipulation;
+  /* Taps on the playfield never pan or zoom the page */
+  touch-action: none;
 }
 
 canvas:focus-visible {
@@ -46,6 +47,11 @@ canvas:focus-visible {
 .controls input {
   flex: 1 1 200px;
   accent-color: var(--accent);
+}
+
+/* Room for two lines, so a longer message does not shift the page */
+#status {
+  min-height: 3em;
 }
 
 output {
