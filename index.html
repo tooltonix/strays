@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Strays – a tiny game with a speed slider</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Strays</h1>
+      <p>
+        Jump with <kbd>Space</kbd>, <kbd>↑</kbd>, click or tap. The speed grows by 0.001 per step,
+        up to a maximum of 13.
+      </p>
+
+      <canvas id="playfield" width="720" height="200" tabindex="0"
+        aria-label="Playfield: a cat runs to the right and jumps over boxes. Press Space to jump.">
+      </canvas>
+
+      <div class="controls">
+        <label for="slider">Speed</label>
+        <input id="slider" type="range" min="1" max="13" step="0.5" value="6" />
+        <output id="readout" for="slider">6.000</output>
+        <meter id="gauge" min="0" max="13" value="6" aria-label="Speed up to the maximum of 13"></meter>
+      </div>
+      <p id="status" aria-live="polite">Jump to start.</p>
+
+      <footer>
+        <p>
+          Original code and graphics. Only the speed rule is borrowed (start at 6, +0.001 per
+          step without a collision, maximum 13) from the T-Rex game of the Chromium project
+          (© The Chromium Authors, BSD license), analysed in the browser build of
+          wayou/t-rex-runner (BSD-3-Clause).
+        </p>
+      </footer>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
