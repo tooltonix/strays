@@ -23,7 +23,8 @@ rebuild deliberately decouples this with a fixed 60 Hz tick.
 
 - Character: a cat drawn from simple shapes; obstacles: cardboard boxes.
 - Jump physics, obstacle spacing, collision check, scoring, colors.
-- Controls: Space, arrow up, click or tap = jump or start.
+- Controls: Space, arrow up, click or tap = jump or start. Playing never moves the page: no
+  scrolling when the playfield gets focus or is tapped, no layout shift from status messages.
 - "Speed" slider (1 to 13): sets the current speed immediately and is the start value for the
   next restart. Default: 6 (rule 1).
 - The current speed is shown as a number and as a gauge up to 13.
