@@ -28,9 +28,9 @@ bridge for the borrowed rule; everything in this folder is an original design.
 
 | Input | Action |
 | --- | --- |
-| Space, ↑, click, tap | Jump / start / restart; hold for a higher jump (07) |
-| ↓ | Duck on the ground (08), fall faster in the air (07) |
-| P | Pause / resume (02) |
+| Space, ↑, click, tap, Jump button | Jump / start / restart; hold for a higher jump (07, 10) |
+| ↓, Duck button | Duck on the ground (08), fall faster in the air (07, 10) |
+| P, Pause button | Pause / resume (02, 10) |
 | M | Sound on / off (03) |
 
 ## Features
@@ -46,6 +46,7 @@ bridge for the borrowed rule; everything in this folder is an original design.
 | 07 | [Jump control](07-jump-control.md) | Gameplay | done |
 | 08 | [More obstacles](08-obstacles.md) | Gameplay | done |
 | 09 | [Treats and growing](09-treats.md) | Gameplay | done |
+| 10 | [Touch controls](10-touch-controls.md) | Controls | done |
 
 ## Recommended order
 

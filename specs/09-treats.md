@@ -8,9 +8,10 @@ a bigger cat is harder to get past obstacles.
 
 ## Treats
 
-- A fish bone appears now and then (about one per 8 obstacles), floating in the middle of a long
-  gap (at least 60 steps) between two obstacles, so it never overlaps one and fetching it never
-  spoils the next jump.
+- Fish bones are frequent: about one for every two obstacles. Each floats in the middle of a gap of
+  at least 50 steps between two obstacles, so it never overlaps one and fetching it never spoils
+  the next jump (half a gap is 25 steps, a hop lasts 24). After playing on a phone, the first rate
+  (one per 8 obstacles, gaps of 60 steps) felt far too rare.
 - It floats 28, 36 or 44 px above the ground: the cat at start size needs a hop to reach it, a
   grown cat reaches the lower ones while running.
 - Touching it collects it: **+50 points**, a short sparkle (04) and the treat sound (03).

@@ -29,7 +29,7 @@
   ];
   const PIGEON_LIFTS = [6, 20]; // space under the bird: low means jump, high means duck
   // Treats and growing (specs/09-treats.md)
-  const FISH = { width: 16, height: 10, chance: 1 / 6, minGapSteps: 60, lifts: [28, 36, 44], points: 50 };
+  const FISH = { width: 16, height: 10, chance: 0.5, minGapSteps: 50, lifts: [28, 36, 44], points: 50 };
   const SIZES = [1, 1.2, 1.4, 1.6]; // cat scale per size; 1.6 still fits under a high pigeon
   const TREATS_PER_SIZE = 3;
   const GROW_STEPS = 15; // the drawn size blends over 0.25 s
@@ -71,6 +71,9 @@
   const gauge = document.getElementById('gauge');
   const status = document.getElementById('status');
   const soundButton = document.getElementById('sound');
+  const touchJump = document.getElementById('touch-jump');
+  const touchDuck = document.getElementById('touch-duck');
+  const touchPause = document.getElementById('touch-pause');
 
   const state = {
     phase: 'ready', // ready | running | paused | over
@@ -81,7 +84,9 @@
     newRecord: false,
     cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26, fastFall: false, scale: 1, squash: 0, stretch: 0 },
     jumpHeld: false, // Space, ↑ or a pointer is held down
-    duckHeld: false, // ↓ is held down
+    duckHeld: false, // ↓ or the Duck button is held down
+    jumpPointer: null, // the pointer holding the jump (playfield or Jump button)
+    duckPointer: null, // the pointer holding the Duck button
     obstacles: [],
     lastType: 'box',
     seenTypes: new Set(),
@@ -659,8 +664,8 @@
       toggleSound();
       return;
     }
-    // The slider and the sound button use these keys themselves
-    if (event.target === slider || event.target === soundButton) return;
+    // The slider and the buttons use these keys themselves
+    if (event.target === slider || event.target instanceof HTMLButtonElement) return;
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
       // A held key repeats; it must not jump again on landing
@@ -679,26 +684,69 @@
     if (event.code === 'Space' || event.code === 'ArrowUp') state.jumpHeld = false;
     if (event.code === 'ArrowDown') state.duckHeld = false;
   });
-  playfield.addEventListener('pointerdown', (event) => {
+  function pressJump(event) {
     event.preventDefault();
     startAudio();
-    // preventScroll: focusing a partly hidden canvas must not scroll the page
-    playfield.focus({ preventScroll: true });
+    state.jumpPointer = event.pointerId;
     state.jumpHeld = true;
     jump();
+  }
+  playfield.addEventListener('pointerdown', (event) => {
+    // preventScroll: focusing a partly hidden canvas must not scroll the page
+    playfield.focus({ preventScroll: true });
+    pressJump(event);
   });
-  // On the window, so letting go outside the playfield also counts
-  const release = () => { state.jumpHeld = false; };
-  window.addEventListener('pointerup', release);
-  window.addEventListener('pointercancel', release);
+
+  // Touch buttons (specs/10-touch-controls.md): they react on press, not on click
+  touchJump.addEventListener('pointerdown', pressJump);
+  touchDuck.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    startAudio();
+    state.duckPointer = event.pointerId;
+    state.duckHeld = true;
+    fastFall();
+  });
+  touchPause.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    togglePause();
+  });
+  // Show the buttons as soon as a finger touches the page, also where the media query misses
+  window.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'touch') document.documentElement.classList.add('touch-input');
+  });
+
+  // On the window and per pointer, so letting go anywhere counts and two thumbs stay independent
+  const releasePointer = (event) => {
+    if (event.pointerId === state.jumpPointer) {
+      state.jumpHeld = false;
+      state.jumpPointer = null;
+    }
+    if (event.pointerId === state.duckPointer) {
+      state.duckHeld = false;
+      state.duckPointer = null;
+    }
+  };
+  window.addEventListener('pointerup', releasePointer);
+  window.addEventListener('pointercancel', releasePointer);
+  const releaseAll = () => {
+    state.jumpHeld = false;
+    state.duckHeld = false;
+    state.jumpPointer = null;
+    state.duckPointer = null;
+  };
+
+  function updateTouchButtons() {
+    touchJump.classList.toggle('pressed', state.jumpHeld);
+    touchDuck.classList.toggle('pressed', state.duckHeld);
+    touchPause.textContent = state.phase === 'paused' ? 'Resume' : 'Pause';
+  }
 
   // Pause automatically when the player looks away; only they decide when to go on
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pause();
   });
   window.addEventListener('blur', () => {
-    release(); // the key-up may never arrive once focus is gone
-    state.duckHeld = false;
+    releaseAll(); // the key-up or pointer-up may never arrive once focus is gone
     pause();
   });
 
@@ -715,6 +763,7 @@
     }
     draw();
     updateReadout();
+    updateTouchButtons();
     const work = performance.now() - workStart;
     state.frames.count += 1;
     state.frames.totalMs += work;

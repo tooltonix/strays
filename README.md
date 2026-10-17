@@ -45,7 +45,8 @@ The game also pauses by itself when you switch tabs.
 collision, restart at 6, cap at 13, high score kept across a reload and without storage, no speed growth while paused,
 hop lower than a held jump, faster landing with arrow down, a scripted player surviving all obstacle
 types at speed 13, growing from fish bones and shrinking from pigeons, sound cues and the sound
-setting, effects that never move the page and respect reduced motion) and saves screenshots. `BOT_SECONDS` sets that run's length (default 60):
+setting, effects that never move the page and respect reduced motion, touch buttons on an emulated phone) and
+saves screenshots. `BOT_SECONDS` sets that run's length (default 60):
 
 ```bash
 npm i playwright-core

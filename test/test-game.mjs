@@ -200,7 +200,7 @@ const play = (ms, options = {}) =>
             key('keydown', 'Space');
             setTimeout(() => key('keyup', 'Space'), 300); // a full jump
             jumps++;
-          } else if (options.fish && onGround && !ducking && steps > 30) {
+          } else if (options.fish && onGround && !ducking && steps > 20) {
             const fish = strays.fish.filter((f) => f.x + f.width > 60).sort((a, b) => a.x - b.x)[0];
             if (fish && (fish.x - front) / strays.speed < 1.5) {
               key('keydown', 'Space');
@@ -314,6 +314,57 @@ const effectsRun = async (reducedMotion) => {
 };
 const effects = { normal: await effectsRun('no-preference'), reducedMotion: await effectsRun('reduce') };
 
+// Touch controls: visible on a phone, hidden with a mouse; two thumbs stay independent
+const desktopTouchVisible = await page.locator('.touch').isVisible();
+const phoneContext = await browser.newContext({ viewport: { width: 412, height: 860 }, hasTouch: true, isMobile: true });
+const phone = await phoneContext.newPage();
+phone.on('pageerror', (e) => errors.push(`touch: ${e}`));
+await phone.goto('http://127.0.0.1:8766/');
+await phone.locator('#slider').fill('1'); // no box arrives during the checks
+const phoneTouchVisible = await phone.locator('.touch').isVisible();
+await phone.tap('#touch-jump'); // a real tap starts the run
+await phone.waitForTimeout(300);
+const scrollBefore = await phone.evaluate(() => window.scrollY);
+// Presses and releases buttons with synthetic touch pointers and watches the cat
+const touchScript = (script) =>
+  phone.evaluate(
+    (script) =>
+      new Promise((done) => {
+        const button = (id) => document.getElementById(id);
+        const press = (id, pointerId) =>
+          button(id).dispatchEvent(new PointerEvent('pointerdown', { pointerId, pointerType: 'touch', bubbles: true, cancelable: true }));
+        const lift = (id, pointerId) =>
+          button(id).dispatchEvent(new PointerEvent('pointerup', { pointerId, pointerType: 'touch', bubbles: true }));
+        const ground = strays.catY;
+        let peak = 0;
+        const start = performance.now();
+        for (const [at, action, id, pointerId] of script) {
+          setTimeout(() => (action === 'press' ? press : lift)(id, pointerId), at);
+        }
+        const end = Math.max(...script.map(([at]) => at)) + 700;
+        (function sample(now) {
+          peak = Math.max(peak, ground - strays.catY);
+          if (now - start < end) requestAnimationFrame(sample);
+          else done({ peak: Math.round(peak), ducking: strays.ducking, phase: strays.phase });
+        })(start);
+      }),
+    script,
+  );
+const touch = {
+  desktopTouchVisible,
+  phoneTouchVisible,
+  hop: await touchScript([[0, 'press', 'touch-jump', 5], [50, 'lift', 'touch-jump', 5]]),
+  fullJump: await touchScript([[0, 'press', 'touch-jump', 6], [400, 'lift', 'touch-jump', 6]]),
+  // Duck held with one thumb while the other jumps: back on the ground the cat ducks again
+  duckWhileJumping: await touchScript([[0, 'press', 'touch-duck', 7], [100, 'press', 'touch-jump', 8], [150, 'lift', 'touch-jump', 8]]),
+  duckReleased: await touchScript([[0, 'lift', 'touch-duck', 7]]),
+  pause: await touchScript([[0, 'press', 'touch-pause', 9]]),
+  resume: await touchScript([[0, 'press', 'touch-pause', 10]]),
+  pageStill: (await phone.evaluate(() => window.scrollY)) === scrollBefore,
+};
+await phone.screenshot({ path: `${folder}/10-phone.png` });
+await phoneContext.close();
+
 // High score: kept across a reload
 await page.reload();
 const reloaded = await read();
@@ -351,6 +402,7 @@ console.log(
       ramming,
       sound,
       effects,
+      touch,
       reloaded,
       storageBlocked,
       errors,
