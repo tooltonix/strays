@@ -18,7 +18,7 @@
   const DUCK = { width: 40, height: 14 }; // the cat's size while ducking
   const COLORS = {
     cat: '#f2eee9', box: '#c98a4b', edge: '#ab4b08', ground: '#ab4b08', text: '#f2eee9', accent: '#ff6b01',
-    pigeon: '#a7a9b4', wing: '#7d8090', bone: '#e8dcc4', dim: 'rgba(27, 27, 27, 0.6)',
+    pigeon: '#a7a9b4', wing: '#7d8090', bone: '#e8dcc4', dust: '#8b857e', dim: 'rgba(27, 27, 27, 0.6)',
   };
   // Obstacle types, unlocked by the current speed (specs/08-obstacles.md)
   const OBSTACLE_TYPES = [
@@ -35,6 +35,16 @@
   const GROW_STEPS = 15; // the drawn size blends over 0.25 s
   const PROTECT_STEPS = 60; // after absorbing a pigeon, pigeons pass through for 1 s
   const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  // Effects (specs/04-juice.md): drawing only, they never add or skip simulation steps
+  const EFFECTS = {
+    maxParticles: 30,
+    particleSteps: 18, // dust and sparkles fade within 0.3 s
+    squashSteps: 4, // flatter after landing
+    stretchSteps: 6, // taller at the start of a jump
+    flashSteps: 36, // the score blinks three times at every 1000 points
+    shakeMs: 250,
+    shakePx: 3,
+  };
   const HIGH_SCORE_KEY = 'strays.highScore';
   const SOUND_KEY = 'strays.sound';
   // Sound cues (specs/03-sound.md): notes with an offset `at` in seconds, levels below master gain
@@ -69,7 +79,7 @@
     score: 0,
     highScore: loadHighScore(),
     newRecord: false,
-    cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26, fastFall: false, scale: 1 },
+    cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26, fastFall: false, scale: 1, squash: 0, stretch: 0 },
     jumpHeld: false, // Space, ↑ or a pointer is held down
     duckHeld: false, // ↓ is held down
     obstacles: [],
@@ -82,6 +92,11 @@
     protectSteps: 0,
     steps: 0, // simulation steps in this run
     milestone: 0, // thousands of points reached in this run
+    particles: [], // landing dust and treat sparkles
+    flashSteps: 0,
+    shakeUntil: 0, // time until which the crash shake runs
+    shake: 0, // largest offset applied in the last frame
+    frames: { count: 0, totalMs: 0, maxMs: 0 }, // work per frame, for the test hook
     distanceToNext: 0,
     groundOffset: 0,
   };
@@ -102,11 +117,16 @@
     state.protectSteps = 0;
     state.steps = 0;
     state.milestone = 0;
+    state.particles = [];
+    state.flashSteps = 0;
+    state.shakeUntil = 0;
     state.distanceToNext = 300;
     state.cat.y = GROUND_Y;
     state.cat.vy = 0;
     state.cat.fastFall = false;
     state.cat.scale = SIZES[0];
+    state.cat.squash = 0;
+    state.cat.stretch = 0;
     announce('Running.');
   }
 
@@ -121,6 +141,7 @@
     }
     if (state.cat.y >= GROUND_Y) {
       state.cat.vy = JUMP_VELOCITY;
+      state.cat.stretch = EFFECTS.stretchSteps;
       playCue('jump');
     }
   }
@@ -175,7 +196,12 @@
     state.fish.push({ x: obstacle.x + obstacle.width + gap / 2 - FISH.width / 2, lift });
   }
 
-  function collectFish() {
+  function collectFish(fish) {
+    const top = GROUND_Y - fish.lift - FISH.height;
+    addParticles(fish.x + FISH.width / 2, top + FISH.height / 2, 6, COLORS.accent, () => ({
+      vx: Math.random() * 3 - 1.5,
+      vy: Math.random() * 3 - 1.5,
+    }));
     state.treats += 1;
     state.score += FISH.points;
     state.growth += 1;
@@ -202,7 +228,15 @@
     if (cat.y === GROUND_Y) {
       cat.vy = 0;
       cat.fastFall = false;
-      if (wasInAir) playCue('land');
+      if (wasInAir) {
+        cat.squash = EFFECTS.squashSteps;
+        const paws = cat.x + (cat.width * cat.scale) / 2;
+        addParticles(paws, GROUND_Y - 1, 4 + Math.floor(Math.random() * 3), COLORS.dust, () => ({
+          vx: (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random() * 1.6),
+          vy: -0.2 - Math.random() * 0.6,
+        }));
+        playCue('land');
+      }
     }
     // The drawn size blends towards the current size; the hitbox uses the current size at once
     const target = SIZES[state.size];
@@ -210,6 +244,15 @@
     if (cat.scale < target) cat.scale = Math.min(target, cat.scale + blend);
     if (cat.scale > target) cat.scale = Math.max(target, cat.scale - blend);
     if (state.protectSteps > 0) state.protectSteps -= 1;
+    if (cat.squash > 0) cat.squash -= 1;
+    if (cat.stretch > 0) cat.stretch -= 1;
+    if (state.flashSteps > 0) state.flashSteps -= 1;
+    for (const particle of state.particles) {
+      particle.x += particle.vx - state.speed * 0.3; // drift back a little with the ground
+      particle.y += particle.vy;
+      particle.life -= 1;
+    }
+    state.particles = state.particles.filter((particle) => particle.life > 0);
 
     for (const obstacle of state.obstacles) {
       obstacle.x -= state.speed;
@@ -235,7 +278,7 @@
       const bottom = GROUND_Y - fish.lift;
       if (overlaps(box, fish.x, fish.x + FISH.width, bottom - FISH.height, bottom)) {
         fish.eaten = true;
-        collectFish();
+        collectFish(fish);
       }
     }
     state.fish = state.fish.filter((fish) => !fish.eaten);
@@ -262,9 +305,19 @@
     const milestone = Math.floor(state.score / 1000);
     if (milestone > state.milestone) {
       state.milestone = milestone;
+      if (!REDUCED_MOTION) state.flashSteps = EFFECTS.flashSteps;
       playCue('milestone');
     }
     state.groundOffset = (state.groundOffset + state.speed) % 24;
+  }
+
+  // Small particles that fade out; off with reduced motion
+  function addParticles(x, y, count, color, velocity) {
+    if (REDUCED_MOTION) return;
+    for (let i = 0; i < count; i++) {
+      state.particles.push({ x, y, color, life: EFFECTS.particleSteps, ...velocity() });
+    }
+    state.particles = state.particles.slice(-EFFECTS.maxParticles);
   }
 
   // Rule 3: the contact that ends the run freezes the speed
@@ -277,6 +330,7 @@
       state.highScore = points;
       saveHighScore(points);
     }
+    state.shakeUntil = performance.now() + EFFECTS.shakeMs;
     playCue('crash');
     if (state.newRecord) playCue('record');
     const verdict = state.newRecord ? 'New record!' : 'Ouch!';
@@ -412,6 +466,13 @@
   // --- Drawing ---
   function draw() {
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    // Crash shake: only the canvas content moves, never the page
+    const shaking = !REDUCED_MOTION && performance.now() < state.shakeUntil;
+    const shakeX = shaking ? (Math.random() * 2 - 1) * EFFECTS.shakePx : 0;
+    const shakeY = shaking ? (Math.random() * 2 - 1) * EFFECTS.shakePx : 0;
+    state.shake = Math.max(Math.abs(shakeX), Math.abs(shakeY));
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
 
     ctx.strokeStyle = COLORS.ground;
     ctx.lineWidth = 2;
@@ -430,8 +491,15 @@
     }
     for (const fish of state.fish) drawFish(fish.x, GROUND_Y - fish.lift - FISH.height);
     drawCat(state.cat);
+    for (const particle of state.particles) {
+      ctx.globalAlpha = particle.life / EFFECTS.particleSteps;
+      ctx.fillStyle = particle.color;
+      ctx.fillRect(particle.x - 1, particle.y - 1, 3, 3);
+    }
+    ctx.globalAlpha = 1;
 
-    ctx.fillStyle = COLORS.text;
+    const flashing = state.flashSteps > 0 && Math.floor(state.flashSteps / 6) % 2 === 1;
+    ctx.fillStyle = flashing ? COLORS.accent : COLORS.text;
     ctx.font = '16px system-ui, sans-serif';
     ctx.textAlign = 'right';
     const current = String(Math.floor(state.score)).padStart(5, '0');
@@ -457,6 +525,7 @@
       if (state.phase === 'over') message = state.newRecord ? 'New record! – jump to restart' : 'Game over – jump to restart';
       ctx.fillText(message, WIDTH / 2, 80);
     }
+    ctx.restore();
   }
 
   function drawCat(cat) {
@@ -466,7 +535,12 @@
     if (protectedNow && REDUCED_MOTION) ctx.globalAlpha = 0.5;
     // Draw at size 1 around the paws, scaled to the current size
     ctx.translate(cat.x, cat.y);
-    ctx.scale(cat.scale, cat.scale);
+    // Squash after landing, stretch when taking off; the hitbox keeps its size
+    let squashX = 1;
+    let squashY = 1;
+    if (cat.squash > 0) [squashX, squashY] = [1.1, 0.9];
+    else if (cat.stretch > 0) [squashX, squashY] = [0.92, 1.1];
+    ctx.scale(cat.scale * squashX, cat.scale * squashY);
     const x = 0;
     const y = 0;
     const running = state.phase === 'running' && cat.y === GROUND_Y;
@@ -493,7 +567,7 @@
     ctx.moveTo(x + 21, y - 26); ctx.lineTo(x + 24, y - 32); ctx.lineTo(x + 27, y - 26);
     ctx.moveTo(x + 28, y - 26); ctx.lineTo(x + 31, y - 32); ctx.lineTo(x + 34, y - 26);
     ctx.fill();
-    ctx.fillRect(x - 8, y - 22, 9, 3); // tail
+    ctx.fillRect(x - 8, y - (stride ? 24 : 22), 9, 3); // tail, swinging with the stride
     ctx.fillRect(x + 2, y - 6, 3, stride ? 6 : 4); // legs
     ctx.fillRect(x + 20, y - 6, 3, stride ? 4 : 6);
     ctx.fillStyle = COLORS.accent;
@@ -634,12 +708,17 @@
   function loop(now) {
     backlog += Math.min(250, now - lastTime); // don't catch up after a tab switch
     lastTime = now;
+    const workStart = performance.now();
     while (backlog >= STEP_MS) {
       if (state.phase === 'running') step();
       backlog -= STEP_MS;
     }
     draw();
     updateReadout();
+    const work = performance.now() - workStart;
+    state.frames.count += 1;
+    state.frames.totalMs += work;
+    state.frames.maxMs = Math.max(state.frames.maxMs, work);
     requestAnimationFrame(loop);
   }
 
@@ -682,6 +761,12 @@
     get highScore() { return state.highScore; },
     get sound() { return sound.on; },
     get cuesPlayed() { return { ...sound.played }; },
+    get particles() { return state.particles.length; },
+    get shake() { return state.shake; },
+    get frameMs() {
+      const { count, totalMs, maxMs } = state.frames;
+      return { average: count ? totalMs / count : 0, max: maxMs };
+    },
   };
 
   updateReadout();

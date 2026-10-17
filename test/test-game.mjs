@@ -165,7 +165,8 @@ const play = (ms, options = {}) =>
             shrunk = true;
             // Rule 2 still holds: every step so far grew the speed by 0.001
             const expected = startSpeed + strays.steps * 0.001;
-            absorbs.push({ from: lastSize, to: size, phase: strays.phase, speedOk: Math.abs(strays.speed - expected) < 1e-6 });
+            const speedOk = expected < 12.99 ? Math.abs(strays.speed - expected) < 1e-6 : 'at maximum';
+            absorbs.push({ from: lastSize, to: size, phase: strays.phase, speed: strays.speed, speedOk });
           }
           lastSize = size;
           maxSize = Math.max(maxSize, size);
@@ -228,6 +229,7 @@ const play = (ms, options = {}) =>
             absorbs,
             rammedAtStartSize,
             cues: strays.cuesPlayed,
+            frameMs: strays.frameMs,
           });
         })(start);
       }),
@@ -271,6 +273,47 @@ await audio.reload();
 const soundReloaded = { ...(await soundState()), label: await audio.locator('#sound').textContent() };
 const sound = { soundOn, afterM, mutedJump, afterButton, soundReloaded };
 
+// Effects: the page never moves; with reduced motion there is no shake and no dust
+const effectsRun = async (reducedMotion) => {
+  const context = await browser.newContext({ viewport: { width: 800, height: 520 }, reducedMotion });
+  const fx = await context.newPage();
+  fx.on('pageerror', (e) => errors.push(`effects: ${e}`));
+  await fx.goto('http://127.0.0.1:8766/');
+  const place = () => fx.evaluate(() => {
+    const box = document.getElementById('playfield').getBoundingClientRect();
+    return { scrollY: window.scrollY, top: box.top, left: box.left };
+  });
+  const before = await place();
+  await fx.locator('#playfield').click();
+  await fx.waitForTimeout(200);
+  await fx.keyboard.press('Space');
+  // Dust right after the landing, then wait for the crash and watch the shake
+  const result = await fx.evaluate(
+    () =>
+      new Promise((done) => {
+        const ground = strays.catY;
+        let wasInAir = false;
+        let dust = 0;
+        let shake = 0;
+        let overAt = null;
+        (function sample(now) {
+          if (strays.catY < ground) wasInAir = true;
+          else if (wasInAir) dust = Math.max(dust, strays.particles);
+          if (strays.phase === 'over') {
+            overAt ??= now;
+            shake = Math.max(shake, strays.shake);
+          }
+          if (overAt === null || now - overAt < 300) requestAnimationFrame(sample);
+          else done({ dust, shake: Math.round(shake * 10) / 10 });
+        })(performance.now());
+      }),
+  );
+  const after = await place();
+  await context.close();
+  return { ...result, pageStill: JSON.stringify(before) === JSON.stringify(after) };
+};
+const effects = { normal: await effectsRun('no-preference'), reducedMotion: await effectsRun('reduce') };
+
 // High score: kept across a reload
 await page.reload();
 const reloaded = await read();
@@ -307,6 +350,7 @@ console.log(
       obstacles,
       ramming,
       sound,
+      effects,
       reloaded,
       storageBlocked,
       errors,
