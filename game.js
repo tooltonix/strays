@@ -14,6 +14,7 @@
   const GRAVITY = 0.6;
   const JUMP_VELOCITY = -11;
   const COLORS = { cat: '#f2eee9', box: '#c98a4b', edge: '#ab4b08', ground: '#ab4b08', text: '#f2eee9', accent: '#ff6b01' };
+  const HIGH_SCORE_KEY = 'strays.highScore';
 
   const playfield = document.getElementById('playfield');
   const ctx = playfield.getContext('2d');
@@ -27,6 +28,8 @@
     speed: RULE.start,
     startSpeed: RULE.start,
     score: 0,
+    highScore: loadHighScore(),
+    newRecord: false,
     cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26 },
     boxes: [],
     distanceToNext: 0,
@@ -38,6 +41,7 @@
     state.phase = 'running';
     state.speed = state.startSpeed;
     state.score = 0;
+    state.newRecord = false;
     state.boxes = [];
     state.distanceToNext = 300;
     state.cat.y = GROUND_Y;
@@ -73,7 +77,15 @@
 
     if (collides()) {
       state.phase = 'over';
-      announce(`Ouch! ${Math.floor(state.score)} points at speed ${state.speed.toFixed(3)}. Jump to restart.`);
+      const points = Math.floor(state.score);
+      // The best score only changes on game over, so the numbers don't jump around while running
+      state.newRecord = points > state.highScore;
+      if (state.newRecord) {
+        state.highScore = points;
+        saveHighScore(points);
+      }
+      const verdict = state.newRecord ? 'New record!' : 'Ouch!';
+      announce(`${verdict} ${points} points at speed ${state.speed.toFixed(3)}. Jump to restart.`);
       return;
     }
 
@@ -94,6 +106,24 @@
       const top = GROUND_Y - box.height;
       return catRight > box.x && catLeft < box.x + box.width && catBottom > top;
     });
+  }
+
+  // --- High score (optional storage: the game works the same without it) ---
+  function loadHighScore() {
+    try {
+      const value = Number(localStorage.getItem(HIGH_SCORE_KEY));
+      return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function saveHighScore(value) {
+    try {
+      localStorage.setItem(HIGH_SCORE_KEY, String(value));
+    } catch {
+      // Storage blocked: keep the best score for this visit only
+    }
   }
 
   // --- Drawing ---
@@ -117,12 +147,16 @@
     ctx.fillStyle = COLORS.text;
     ctx.font = '16px system-ui, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(String(Math.floor(state.score)).padStart(5, '0'), WIDTH - 12, 24);
+    const current = String(Math.floor(state.score)).padStart(5, '0');
+    const best = state.highScore > 0 ? `HI ${String(state.highScore).padStart(5, '0')}  ` : '';
+    ctx.fillText(best + current, WIDTH - 12, 24);
 
     if (state.phase !== 'running') {
       ctx.textAlign = 'center';
       ctx.fillStyle = COLORS.accent;
-      ctx.fillText(state.phase === 'ready' ? 'Jump to start' : 'Game over – jump to restart', WIDTH / 2, 80);
+      let message = 'Jump to start';
+      if (state.phase === 'over') message = state.newRecord ? 'New record! – jump to restart' : 'Game over – jump to restart';
+      ctx.fillText(message, WIDTH / 2, 80);
     }
   }
 
@@ -206,7 +240,12 @@
   }
 
   // Hook for automated tests (read-only, changes nothing)
-  window.strays = { get speed() { return state.speed; }, get phase() { return state.phase; } };
+  window.strays = {
+    get speed() { return state.speed; },
+    get phase() { return state.phase; },
+    get score() { return Math.floor(state.score); },
+    get highScore() { return state.highScore; },
+  };
 
   updateReadout();
   requestAnimationFrame(loop);

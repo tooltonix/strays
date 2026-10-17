@@ -37,7 +37,8 @@ Then open <http://localhost:8000/>. Jump with Space, arrow up, click or tap.
 ## Test
 
 `test/test-game.mjs` checks the behaviour with Playwright (increase per second, freeze on
-collision, restart at 6, cap at 13) and saves screenshots:
+collision, restart at 6, cap at 13, high score kept across a reload and without storage) and saves
+screenshots:
 
 ```bash
 npm i playwright-core

@@ -26,10 +26,10 @@ None. Points still grow by speed / 10 per step, plus treats (09).
 
 ## Acceptance criteria
 
-- [ ] `window.strays.score` and `window.strays.highScore` are exposed (read-only).
-- [ ] After a crash with a higher score, `highScore` equals the floored final score.
-- [ ] The value survives a reload.
-- [ ] With `localStorage` throwing (stubbed in the test), the game still starts and runs.
+- [x] `window.strays.score` and `window.strays.highScore` are exposed (read-only).
+- [x] After a crash with a higher score, `highScore` equals the floored final score.
+- [x] The value survives a reload.
+- [x] With `localStorage` throwing (stubbed in the test), the game still starts and runs.
 
 ## Out of scope
 

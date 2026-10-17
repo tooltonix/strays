@@ -10,7 +10,8 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto('http://127.0.0.1:8766/');
 
-const read = () => page.evaluate(() => ({ speed: strays.speed, phase: strays.phase }));
+const read = (target = page) =>
+  target.evaluate(() => ({ speed: strays.speed, phase: strays.phase, score: strays.score, highScore: strays.highScore }));
 
 const ready = await read();
 await page.screenshot({ path: `${folder}/01-ready.png` });
@@ -46,6 +47,24 @@ const max2 = await read();
 const readout = await page.locator('#readout').textContent();
 await page.screenshot({ path: `${folder}/04-slider-13.png` });
 
+// High score: kept across a reload
+await page.reload();
+const reloaded = await read();
+await page.screenshot({ path: `${folder}/05-high-score.png` });
+
+// High score: the game still runs when storage throws
+const blocked = await browser.newPage();
+blocked.on('pageerror', (e) => errors.push(`blocked storage: ${e}`));
+await blocked.addInitScript(() => {
+  const fail = () => { throw new Error('storage blocked'); };
+  Storage.prototype.getItem = fail;
+  Storage.prototype.setItem = fail;
+});
+await blocked.goto('http://127.0.0.1:8766/');
+await blocked.keyboard.press('Space');
+await blocked.waitForTimeout(300);
+const storageBlocked = await read(blocked);
+
 console.log(
   JSON.stringify(
     {
@@ -59,6 +78,8 @@ console.log(
       max1,
       max2,
       readout,
+      reloaded,
+      storageBlocked,
       errors,
     },
     null,
