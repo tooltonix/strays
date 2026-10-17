@@ -13,7 +13,8 @@ bridge for the borrowed rule; everything in this folder is an original design.
    other game. Ideas such as "a flying obstacle" are generic, but their look, sizes and timings are
    our own.
 3. **No dependencies, no build.** Plain `index.html`, `style.css`, `game.js`. No audio or image
-   files; sounds and graphics are generated in code.
+   files; sounds and graphics are generated in code. Every sound uses the set A blips from
+   [03](03-sound.md).
 4. **The page stays still.** Effects happen inside the canvas only; no scrolling, no layout shift
    (`SPEC.md`, "Freely designed").
 5. **Accessible.** Every new control works with the keyboard, has a label, and important events are

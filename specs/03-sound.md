@@ -7,7 +7,10 @@ Short, friendly sound cues that make jumps and crashes feel tangible, without an
 ## Behaviour
 
 - Sounds are synthesised with the Web Audio API (oscillator + gain envelope), each under 0.3 s.
-- Cues (set A "blips", chosen after listening tests against a synthesised cat voice):
+- All cues come from set A, "blips", chosen after listening tests against a synthesised cat voice.
+  This is the rule for every sound, also for cues added later: simple oscillator notes with glides,
+  no voices, no noise, no recordings.
+- Cues:
 
   | Cue | When | Sound |
   | --- | --- | --- |
@@ -18,7 +21,7 @@ Short, friendly sound cues that make jumps and crashes feel tangible, without an
   | **Crash** | collision with an obstacle | sawtooth gliding 440 → 110 Hz, 0.28 s, level 0.45 |
   | **New record** (06) | once, right after the crash cue, only when the high score falls | square 523, 659, 784, 1047 Hz, 4 × 0.07 s, level 0.4 |
   | **Grow** (09) | the cat grows one size | the treat cue twice, the second 0.16 s after the first |
-  | **Shrink** (09) | a pigeon hit makes the cat smaller | triangle gliding 880 → 330 Hz, 0.2 s, level 0.6 (proposed, waiting for a listening test) |
+  | **Shrink** (09) | a pigeon hit makes the cat smaller | triangle gliding 880 → 330 Hz, 0.2 s, level 0.6 |
 
 - Each note has an 8 ms attack and an exponential decay to silence; frequency glides are
   exponential. Levels are relative to the master gain.
