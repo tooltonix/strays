@@ -32,13 +32,14 @@ No dependencies, no build. Start any static server in this folder, e.g.:
 python3 -m http.server 8000
 ```
 
-Then open <http://localhost:8000/>. Jump with Space, arrow up, click or tap.
+Then open <http://localhost:8000/>. Jump with Space, arrow up, click or tap; pause with P.
+The game also pauses by itself when you switch tabs.
 
 ## Test
 
 `test/test-game.mjs` checks the behaviour with Playwright (increase per second, freeze on
-collision, restart at 6, cap at 13, high score kept across a reload and without storage) and saves
-screenshots:
+collision, restart at 6, cap at 13, high score kept across a reload and without storage, no speed growth while paused)
+and saves screenshots:
 
 ```bash
 npm i playwright-core

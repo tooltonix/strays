@@ -37,7 +37,7 @@ bridge for the borrowed rule; everything in this folder is an original design.
 | # | Spec | Area | Status |
 | --- | --- | --- | --- |
 | 01 | [Favicon](01-favicon.md) | Polish | done |
-| 02 | [Pause](02-pause.md) | Polish | planned |
+| 02 | [Pause](02-pause.md) | Polish | done |
 | 03 | [Sound](03-sound.md) | Polish | planned |
 | 04 | [Effects](04-juice.md) | Polish | planned |
 | 05 | [Day and night](05-day-night.md) | Polish | planned |

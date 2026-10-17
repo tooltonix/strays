@@ -34,10 +34,10 @@ growth is counted per step, not per second.
 
 ## Acceptance criteria
 
-- [ ] `window.strays.phase` reports `paused`.
-- [ ] Speed after 1 s of pause equals the speed when pausing.
-- [ ] After resuming, the speed grows by about 0.06 per second again.
-- [ ] Dispatching `visibilitychange` with `document.hidden === true` while running pauses the game.
+- [x] `window.strays.phase` reports `paused`.
+- [x] Speed after 1 s of pause equals the speed when pausing.
+- [x] After resuming, the speed grows by about 0.06 per second again.
+- [x] Dispatching `visibilitychange` with `document.hidden === true` while running pauses the game.
 
 ## Out of scope
 

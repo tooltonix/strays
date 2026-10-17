@@ -13,7 +13,7 @@
   const GROUND_Y = 170;
   const GRAVITY = 0.6;
   const JUMP_VELOCITY = -11;
-  const COLORS = { cat: '#f2eee9', box: '#c98a4b', edge: '#ab4b08', ground: '#ab4b08', text: '#f2eee9', accent: '#ff6b01' };
+  const COLORS = { cat: '#f2eee9', box: '#c98a4b', edge: '#ab4b08', ground: '#ab4b08', text: '#f2eee9', accent: '#ff6b01', dim: 'rgba(27, 27, 27, 0.6)' };
   const HIGH_SCORE_KEY = 'strays.highScore';
 
   const playfield = document.getElementById('playfield');
@@ -24,7 +24,7 @@
   const status = document.getElementById('status');
 
   const state = {
-    phase: 'ready', // ready | running | over
+    phase: 'ready', // ready | running | paused | over
     speed: RULE.start,
     startSpeed: RULE.start,
     score: 0,
@@ -50,6 +50,10 @@
   }
 
   function jump() {
+    if (state.phase === 'paused') {
+      resume(); // resuming does not also jump
+      return;
+    }
     if (state.phase !== 'running') {
       restart();
       return;
@@ -152,9 +156,14 @@
     ctx.fillText(best + current, WIDTH - 12, 24);
 
     if (state.phase !== 'running') {
+      if (state.phase === 'paused') {
+        ctx.fillStyle = COLORS.dim;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      }
       ctx.textAlign = 'center';
       ctx.fillStyle = COLORS.accent;
       let message = 'Jump to start';
+      if (state.phase === 'paused') message = 'Paused – press P or jump to continue';
       if (state.phase === 'over') message = state.newRecord ? 'New record! – jump to restart' : 'Game over – jump to restart';
       ctx.fillText(message, WIDTH / 2, 80);
     }
@@ -211,6 +220,10 @@
 
   // --- Input ---
   document.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyP' && !event.repeat) {
+      togglePause();
+      return;
+    }
     if (event.target === slider) return;
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
@@ -223,6 +236,12 @@
     playfield.focus({ preventScroll: true });
     jump();
   });
+
+  // Pause automatically when the player looks away; only they decide when to go on
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pause();
+  });
+  window.addEventListener('blur', pause);
 
   // --- Main loop with a fixed 60 Hz tick ---
   let lastTime = performance.now();
@@ -237,6 +256,25 @@
     draw();
     updateReadout();
     requestAnimationFrame(loop);
+  }
+
+  // --- Pause: no simulation steps run, so the speed does not grow ---
+  function pause() {
+    if (state.phase !== 'running') return;
+    state.phase = 'paused';
+    announce('Paused.');
+  }
+
+  function resume() {
+    if (state.phase !== 'paused') return;
+    backlog = 0; // don't catch up on the steps missed while paused
+    state.phase = 'running';
+    announce('Running.');
+  }
+
+  function togglePause() {
+    if (state.phase === 'running') pause();
+    else resume();
   }
 
   // Hook for automated tests (read-only, changes nothing)

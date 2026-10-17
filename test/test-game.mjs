@@ -47,6 +47,36 @@ const max2 = await read();
 const readout = await page.locator('#readout').textContent();
 await page.screenshot({ path: `${folder}/04-slider-13.png` });
 
+// Pause: on a fresh page, so the runs above are not affected
+const paused = await browser.newPage({ viewport: { width: 800, height: 520 } });
+paused.on('pageerror', (e) => errors.push(`pause: ${e}`));
+await paused.goto('http://127.0.0.1:8766/');
+await paused.keyboard.press('Space');
+await paused.waitForTimeout(300);
+await paused.keyboard.press('KeyP');
+const pause1 = await read(paused);
+await paused.waitForTimeout(1000);
+const pause2 = await read(paused);
+await paused.screenshot({ path: `${folder}/06-paused.png` });
+await paused.keyboard.press('Space');
+const resumeStart = await read(paused);
+const r0 = Date.now();
+await paused.waitForTimeout(1000);
+const resumeEnd = await read(paused);
+const r1 = Date.now();
+await paused.evaluate(() => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  document.dispatchEvent(new Event('visibilitychange'));
+});
+const hidden = await read(paused);
+const pause = {
+  pause1,
+  pause2,
+  increasePerSecondAfterResume: (resumeEnd.speed - resumeStart.speed) / ((r1 - r0) / 1000),
+  resumeEnd,
+  hidden,
+};
+
 // High score: kept across a reload
 await page.reload();
 const reloaded = await read();
@@ -78,6 +108,7 @@ console.log(
       max1,
       max2,
       readout,
+      pause,
       reloaded,
       storageBlocked,
       errors,
