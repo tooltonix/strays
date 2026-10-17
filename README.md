@@ -34,7 +34,8 @@ python3 -m http.server 8000
 
 Then open <http://localhost:8000/>. Jump with Space, arrow up, click or tap: hold for a high
 jump, tap for a hop. Arrow down ducks under high-flying pigeons, or drops faster in the air. Pause
-with P. From speed 7 on, box stacks, box rows and pigeons join the single boxes.
+with P. From speed 7 on, box stacks, box rows and pigeons join the single boxes. Fish bones give
+50 points, and every 3 of them make the cat bigger: a bigger cat survives a pigeon but shrinks.
 The game also pauses by itself when you switch tabs.
 
 ## Test

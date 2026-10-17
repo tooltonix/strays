@@ -8,8 +8,11 @@ a bigger cat is harder to get past obstacles.
 
 ## Treats
 
-- A fish bone appears now and then (about one per 8 obstacles), floating at jump height between two
-  obstacles, never overlapping one.
+- A fish bone appears now and then (about one per 8 obstacles), floating in the middle of a long
+  gap (at least 60 steps) between two obstacles, so it never overlaps one and fetching it never
+  spoils the next jump.
+- It floats 28, 36 or 44 px above the ground: the cat at start size needs a hop to reach it, a
+  grown cat reaches the lower ones while running.
 - Touching it collects it: **+50 points**, a short sparkle (04) and the treat sound (03).
 - A counter next to the score shows the treats of this run: a small fish shape drawn on the canvas
   (not an emoji, so it looks the same everywhere) followed by the count.

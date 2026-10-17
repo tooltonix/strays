@@ -136,21 +136,57 @@ const startRun = async (speed) => {
   await runs.locator('#slider').fill(String(speed));
   await runs.locator('#playfield').click();
 };
-const play = (ms) =>
+// options.fish: hop for fish bones. options.ram: let pigeons hit a grown cat, and once it has
+// shrunk back to the start size, let one more hit it (that one must end the run).
+const play = (ms, options = {}) =>
   runs.evaluate(
-    (ms) =>
+    ({ ms, options }) =>
       new Promise((done) => {
         const ground = strays.catY;
-        const catFront = 90; // right edge of the cat's hitbox
+        const startSpeed = strays.speed - strays.steps * 0.001;
         const key = (type, code) => document.dispatchEvent(new KeyboardEvent(type, { code }));
         const start = performance.now();
         let ducking = false;
         let jumps = 0;
         let ducks = 0;
+        let shrunk = false;
+        let lastSize = strays.size;
+        let maxSize = strays.size;
+        let biggestSince = null;
+        let secondsAtMaxSize = 0;
+        let highestTop = Infinity;
+        let fishOverlaps = 0;
+        let rammedAtStartSize = false;
+        const absorbs = [];
         (function tick(now) {
-          const next = strays.obstacles.filter((o) => o.x + o.width > 60).sort((a, b) => a.x - b.x)[0];
-          const steps = next ? (next.x - catFront) / strays.speed : Infinity;
+          const size = strays.size;
+          const front = strays.catBox.right;
+          if (size < lastSize) {
+            shrunk = true;
+            // Rule 2 still holds: every step so far grew the speed by 0.001
+            const expected = startSpeed + strays.steps * 0.001;
+            absorbs.push({ from: lastSize, to: size, phase: strays.phase, speedOk: Math.abs(strays.speed - expected) < 1e-6 });
+          }
+          lastSize = size;
+          maxSize = Math.max(maxSize, size);
+          if (size === 3) {
+            biggestSince ??= now;
+            highestTop = Math.min(highestTop, strays.catTop);
+          } else if (biggestSince !== null) {
+            secondsAtMaxSize += (now - biggestSince) / 1000;
+            biggestSince = null;
+          }
+          const obstacles = strays.obstacles.filter((o) => !o.fleeing);
+          for (const f of strays.fish) {
+            if (obstacles.some((o) => o.x < f.x + f.width && f.x < o.x + o.width)) fishOverlaps++;
+          }
+          const ram = (o) => options.ram && o.type === 'pigeon' && (size > 0 || shrunk);
+          const next = obstacles.filter((o) => o.x + o.width > 60 && !ram(o)).sort((a, b) => a.x - b.x)[0];
+          const rammed = obstacles.find((o) => ram(o) && o.x < front && o.x + o.width > 60);
+          if (rammed && size === 0) rammedAtStartSize = true;
+          const steps = next ? (next.x - front) / strays.speed : Infinity;
           const duckUnder = next && next.lift >= 16;
+          const onGround = strays.catY === ground;
           if (duckUnder && steps < 10 && !ducking) {
             key('keydown', 'ArrowDown');
             ducking = true;
@@ -159,24 +195,50 @@ const play = (ms) =>
             key('keyup', 'ArrowDown');
             ducking = false;
           }
-          if (!duckUnder && steps < 7 && strays.catY === ground) {
+          if (!duckUnder && steps < 7 && onGround) {
             key('keydown', 'Space');
             setTimeout(() => key('keyup', 'Space'), 300); // a full jump
             jumps++;
+          } else if (options.fish && onGround && !ducking && steps > 30) {
+            const fish = strays.fish.filter((f) => f.x + f.width > 60).sort((a, b) => a.x - b.x)[0];
+            if (fish && (fish.x - front) / strays.speed < 1.5) {
+              key('keydown', 'Space');
+              setTimeout(() => key('keyup', 'Space'), 40); // a hop
+            }
           }
-          if (strays.phase === 'running' && now - start < ms) requestAnimationFrame(tick);
-          else done({ phase: strays.phase, seconds: Math.round((now - start) / 1000), speed: strays.speed, jumps, ducks, types: strays.obstacleTypes });
+          if (strays.phase === 'running' && now - start < ms) return requestAnimationFrame(tick);
+          if (biggestSince !== null) secondsAtMaxSize += (now - biggestSince) / 1000;
+          done({
+            phase: strays.phase,
+            seconds: Math.round((now - start) / 1000),
+            speed: strays.speed,
+            jumps,
+            ducks,
+            types: strays.obstacleTypes,
+            treats: strays.treats,
+            maxSize,
+            secondsAtMaxSize: Math.round(secondsAtMaxSize),
+            highestTop: highestTop === Infinity ? null : Math.round(highestTop),
+            fishOverlaps,
+            absorbs,
+            rammedAtStartSize,
+          });
         })(start);
       }),
-    ms,
+    { ms, options },
   );
 await startRun(5);
 const slow = await play(15000); // the speed stays below 7 for about 30 s
 await runs.screenshot({ path: `${folder}/07-obstacles-slow.png` });
 await startRun(13);
-const fast = await play(botSeconds * 1000);
+const fast = await play(botSeconds * 1000, { fish: true });
 await runs.screenshot({ path: `${folder}/08-obstacles-fast.png` });
 const obstacles = { slow, fast };
+
+// Growing and shrinking: grow from fish, then ram pigeons until the run ends
+await startRun(9);
+const ramming = await play(240000, { fish: true, ram: true });
+await runs.screenshot({ path: `${folder}/09-rammed.png` });
 
 // High score: kept across a reload
 await page.reload();
@@ -212,6 +274,7 @@ console.log(
       pause,
       jumpControl,
       obstacles,
+      ramming,
       reloaded,
       storageBlocked,
       errors,
