@@ -125,6 +125,59 @@ const jumpControl = {
   phase: (await read(jumps)).phase,
 };
 
+// Obstacles: a scripted player that knows where every obstacle is. If it survives, every
+// sequence the game generates can be cleared. BOT_SECONDS sets the run at speed 13 (default 60).
+const botSeconds = Number(process.env.BOT_SECONDS ?? 60);
+const runs = await browser.newPage({ viewport: { width: 800, height: 520 } });
+runs.on('pageerror', (e) => errors.push(`obstacles: ${e}`));
+// Starts a fresh run at the given speed, so all gaps were made for that speed
+const startRun = async (speed) => {
+  await runs.goto('http://127.0.0.1:8766/');
+  await runs.locator('#slider').fill(String(speed));
+  await runs.locator('#playfield').click();
+};
+const play = (ms) =>
+  runs.evaluate(
+    (ms) =>
+      new Promise((done) => {
+        const ground = strays.catY;
+        const catFront = 90; // right edge of the cat's hitbox
+        const key = (type, code) => document.dispatchEvent(new KeyboardEvent(type, { code }));
+        const start = performance.now();
+        let ducking = false;
+        let jumps = 0;
+        let ducks = 0;
+        (function tick(now) {
+          const next = strays.obstacles.filter((o) => o.x + o.width > 60).sort((a, b) => a.x - b.x)[0];
+          const steps = next ? (next.x - catFront) / strays.speed : Infinity;
+          const duckUnder = next && next.lift >= 16;
+          if (duckUnder && steps < 10 && !ducking) {
+            key('keydown', 'ArrowDown');
+            ducking = true;
+            ducks++;
+          } else if (!duckUnder && ducking) {
+            key('keyup', 'ArrowDown');
+            ducking = false;
+          }
+          if (!duckUnder && steps < 7 && strays.catY === ground) {
+            key('keydown', 'Space');
+            setTimeout(() => key('keyup', 'Space'), 300); // a full jump
+            jumps++;
+          }
+          if (strays.phase === 'running' && now - start < ms) requestAnimationFrame(tick);
+          else done({ phase: strays.phase, seconds: Math.round((now - start) / 1000), speed: strays.speed, jumps, ducks, types: strays.obstacleTypes });
+        })(start);
+      }),
+    ms,
+  );
+await startRun(5);
+const slow = await play(15000); // the speed stays below 7 for about 30 s
+await runs.screenshot({ path: `${folder}/07-obstacles-slow.png` });
+await startRun(13);
+const fast = await play(botSeconds * 1000);
+await runs.screenshot({ path: `${folder}/08-obstacles-fast.png` });
+const obstacles = { slow, fast };
+
 // High score: kept across a reload
 await page.reload();
 const reloaded = await read();
@@ -158,6 +211,7 @@ console.log(
       readout,
       pause,
       jumpControl,
+      obstacles,
       reloaded,
       storageBlocked,
       errors,
