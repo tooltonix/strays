@@ -13,6 +13,8 @@
   const GROUND_Y = 170;
   const GRAVITY = 0.6;
   const JUMP_VELOCITY = -11;
+  const SHORT_JUMP_GRAVITY = 2; // factor once the jump input is released while rising
+  const FAST_FALL_GRAVITY = 3; // factor after ↓ in the air, until landing
   const COLORS = { cat: '#f2eee9', box: '#c98a4b', edge: '#ab4b08', ground: '#ab4b08', text: '#f2eee9', accent: '#ff6b01', dim: 'rgba(27, 27, 27, 0.6)' };
   const HIGH_SCORE_KEY = 'strays.highScore';
 
@@ -30,7 +32,8 @@
     score: 0,
     highScore: loadHighScore(),
     newRecord: false,
-    cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26 },
+    cat: { x: 60, y: GROUND_Y, vy: 0, width: 34, height: 26, fastFall: false },
+    jumpHeld: false, // Space, ↑ or a pointer is held down
     boxes: [],
     distanceToNext: 0,
     groundOffset: 0,
@@ -46,6 +49,7 @@
     state.distanceToNext = 300;
     state.cat.y = GROUND_Y;
     state.cat.vy = 0;
+    state.cat.fastFall = false;
     announce('Running.');
   }
 
@@ -61,11 +65,22 @@
     if (state.cat.y >= GROUND_Y) state.cat.vy = JUMP_VELOCITY;
   }
 
+  function fastFall() {
+    if (state.phase === 'running' && state.cat.y < GROUND_Y) state.cat.fastFall = true;
+  }
+
   function step() {
     const cat = state.cat;
-    cat.vy += GRAVITY;
+    // Variable jump height: letting go while rising pulls the cat down sooner
+    let gravity = GRAVITY;
+    if (cat.fastFall) gravity *= FAST_FALL_GRAVITY;
+    else if (cat.vy < 0 && !state.jumpHeld) gravity *= SHORT_JUMP_GRAVITY;
+    cat.vy += gravity;
     cat.y = Math.min(GROUND_Y, cat.y + cat.vy);
-    if (cat.y === GROUND_Y) cat.vy = 0;
+    if (cat.y === GROUND_Y) {
+      cat.vy = 0;
+      cat.fastFall = false;
+    }
 
     for (const box of state.boxes) box.x -= state.speed;
     state.boxes = state.boxes.filter((box) => box.x + box.width > 0);
@@ -227,21 +242,39 @@
     if (event.target === slider) return;
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
+      // A held key repeats; it must not jump again on landing
+      if (event.repeat) return;
+      state.jumpHeld = true;
       jump();
     }
+    if (event.code === 'ArrowDown') {
+      event.preventDefault();
+      fastFall();
+    }
+  });
+  document.addEventListener('keyup', (event) => {
+    if (event.code === 'Space' || event.code === 'ArrowUp') state.jumpHeld = false;
   });
   playfield.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     // preventScroll: focusing a partly hidden canvas must not scroll the page
     playfield.focus({ preventScroll: true });
+    state.jumpHeld = true;
     jump();
   });
+  // On the window, so letting go outside the playfield also counts
+  const release = () => { state.jumpHeld = false; };
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
 
   // Pause automatically when the player looks away; only they decide when to go on
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pause();
   });
-  window.addEventListener('blur', pause);
+  window.addEventListener('blur', () => {
+    release(); // the key-up may never arrive once focus is gone
+    pause();
+  });
 
   // --- Main loop with a fixed 60 Hz tick ---
   let lastTime = performance.now();
@@ -281,6 +314,7 @@
   window.strays = {
     get speed() { return state.speed; },
     get phase() { return state.phase; },
+    get catY() { return state.cat.y; },
     get score() { return Math.floor(state.score); },
     get highScore() { return state.highScore; },
   };

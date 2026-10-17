@@ -38,10 +38,12 @@ None. Jump physics are freely designed (`SPEC.md`).
 
 ## Acceptance criteria
 
-- [ ] A 50 ms key press gives a lower jump than a 400 ms press (`window.strays.catY` exposed;
+- [x] A 50 ms key press gives a lower jump than a 400 ms press (`window.strays.catY` exposed;
       the peak is the smallest `catY` during the jump).
-- [ ] ↓ in the air shortens the time until landing.
-- [ ] The tallest planned obstacle (08) is clearable with a full jump at speed 13.
+- [x] ↓ in the air shortens the time until landing.
+- [ ] The tallest planned obstacle (08) is clearable with a full jump at speed 13. To be checked
+      with 08; measured so far: a tap reaches 60 px, a full jump 95 px, the planned box stack is at
+      most 46 px high.
 
 ## Out of scope
 

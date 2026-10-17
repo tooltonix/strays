@@ -42,7 +42,7 @@ bridge for the borrowed rule; everything in this folder is an original design.
 | 04 | [Effects](04-juice.md) | Polish | planned |
 | 05 | [Day and night](05-day-night.md) | Polish | planned |
 | 06 | [High score](06-highscore.md) | Gameplay | done |
-| 07 | [Jump control](07-jump-control.md) | Gameplay | planned |
+| 07 | [Jump control](07-jump-control.md) | Gameplay | done |
 | 08 | [More obstacles](08-obstacles.md) | Gameplay | planned |
 | 09 | [Treats](09-treats.md) | Gameplay | planned |
 

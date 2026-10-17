@@ -77,6 +77,54 @@ const pause = {
   hidden,
 };
 
+// Jump control: on a fresh page at speed 1, so no box arrives during the measurements
+const jumps = await browser.newPage({ viewport: { width: 800, height: 520 } });
+jumps.on('pageerror', (e) => errors.push(`jumps: ${e}`));
+await jumps.goto('http://127.0.0.1:8766/');
+await jumps.locator('#slider').fill('1');
+await jumps.locator('#playfield').click(); // starts the run and focuses the playfield
+await jumps.waitForTimeout(200);
+// Watches the cat for `ms`: highest point above the ground and time spent in the air
+const watch = (ms) =>
+  jumps.evaluate(
+    (ms) =>
+      new Promise((done) => {
+        const ground = strays.catY;
+        const start = performance.now();
+        let peak = 0;
+        let airFrom = null;
+        let airMs = 0;
+        (function sample(now) {
+          const height = ground - strays.catY;
+          peak = Math.max(peak, height);
+          if (height > 0 && airFrom === null) airFrom = now;
+          if (height <= 0 && airFrom !== null && !airMs) airMs = now - airFrom;
+          if (now - start < ms) requestAnimationFrame(sample);
+          else done({ peak: Math.round(peak), airMs: Math.round(airMs) });
+        })(start);
+      }),
+    ms,
+  );
+const press = async (holdMs, downAfterMs) => {
+  const result = watch(1500);
+  await jumps.keyboard.down('Space');
+  if (downAfterMs !== undefined && downAfterMs < holdMs) {
+    await jumps.waitForTimeout(downAfterMs);
+    await jumps.keyboard.press('ArrowDown');
+    await jumps.waitForTimeout(holdMs - downAfterMs);
+  } else {
+    await jumps.waitForTimeout(holdMs);
+  }
+  await jumps.keyboard.up('Space');
+  return result;
+};
+const jumpControl = {
+  tap: await press(50),
+  hold: await press(400),
+  holdWithFastFall: await press(400, 350),
+  phase: (await read(jumps)).phase,
+};
+
 // High score: kept across a reload
 await page.reload();
 const reloaded = await read();
@@ -109,6 +157,7 @@ console.log(
       max2,
       readout,
       pause,
+      jumpControl,
       reloaded,
       storageBlocked,
       errors,
