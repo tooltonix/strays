@@ -19,6 +19,11 @@ Only the rule is borrowed: start at 6, +0.001 per simulation step without a coll
 13. Graphics, jump, collision and code are original designs. Unlike the original, the
 simulation runs on a fixed 60 Hz tick, so the acceleration does not depend on the refresh rate.
 
+## Roadmap
+
+Planned features (high score, pause, jump control, more obstacles, treats, sound, effects, day and
+night) are specified one by one in [`specs/`](specs/README.md), before any code is written.
+
 ## Run it
 
 No dependencies, no build. Start any static server in this folder, e.g.:
