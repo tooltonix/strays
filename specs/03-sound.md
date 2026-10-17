@@ -17,6 +17,8 @@ Short, friendly sound cues that make jumps and crashes feel tangible, without an
   | **Milestone** (04) | every 1000 points | triangle 660, 880, 1320 Hz, 3 × 0.09 s, level 0.6 |
   | **Crash** | collision with an obstacle | sawtooth gliding 440 → 110 Hz, 0.28 s, level 0.45 |
   | **New record** (06) | once, right after the crash cue, only when the high score falls | square 523, 659, 784, 1047 Hz, 4 × 0.07 s, level 0.4 |
+  | **Grow** (09) | the cat grows one size | the treat cue twice, the second 0.16 s after the first |
+  | **Shrink** (09) | a pigeon hit makes the cat smaller | triangle gliding 880 → 330 Hz, 0.2 s, level 0.6 (proposed, waiting for a listening test) |
 
 - Each note has an 8 ms attack and an exponential decay to silence; frequency glides are
   exponential. Levels are relative to the master gain.
@@ -42,9 +44,12 @@ None.
 
 ## Acceptance criteria
 
-- [ ] `window.strays.sound` reports `true` or `false`; M and the button both toggle it.
-- [ ] The setting survives a reload.
-- [ ] No console errors in a browser without audio output (headless test).
+- [x] `window.strays.sound` reports `true` or `false`; M and the button both toggle it.
+- [x] The setting survives a reload.
+- [x] No console errors in a browser without audio output (headless test).
+- [x] Every cue plays on its event (`window.strays.cuesPlayed` counts them; the scripted runs hit
+      all eight) and none plays while the sound is off.
+- [ ] Heard on real speakers inside the game, not only on the sound check page.
 
 ## Out of scope
 

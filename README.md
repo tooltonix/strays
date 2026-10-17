@@ -34,8 +34,9 @@ python3 -m http.server 8000
 
 Then open <http://localhost:8000/>. Jump with Space, arrow up, click or tap: hold for a high
 jump, tap for a hop. Arrow down ducks under high-flying pigeons, or drops faster in the air. Pause
-with P. From speed 7 on, box stacks, box rows and pigeons join the single boxes. Fish bones give
-50 points, and every 3 of them make the cat bigger: a bigger cat survives a pigeon but shrinks.
+with P, sound on or off with M. From speed 7 on, box stacks, box rows and pigeons join the single
+boxes. Fish bones give 50 points, and every 3 of them make the cat bigger: a bigger cat survives a
+pigeon but shrinks.
 The game also pauses by itself when you switch tabs.
 
 ## Test
@@ -43,7 +44,8 @@ The game also pauses by itself when you switch tabs.
 `test/test-game.mjs` checks the behaviour with Playwright (increase per second, freeze on
 collision, restart at 6, cap at 13, high score kept across a reload and without storage, no speed growth while paused,
 hop lower than a held jump, faster landing with arrow down, a scripted player surviving all obstacle
-types at speed 13, growing from fish bones and shrinking from pigeons) and saves screenshots. `BOT_SECONDS` sets that run's length (default 60):
+types at speed 13, growing from fish bones and shrinking from pigeons, sound cues and the sound setting) and saves
+screenshots. `BOT_SECONDS` sets that run's length (default 60):
 
 ```bash
 npm i playwright-core

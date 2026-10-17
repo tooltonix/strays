@@ -14,8 +14,9 @@
       <p>
         Jump with <kbd>Space</kbd>, <kbd>↑</kbd>, click or tap: hold for a high jump, tap for a hop.
         <kbd>↓</kbd> ducks under high-flying pigeons, or drops faster in the air. Pause with
-        <kbd>P</kbd>. Every 3 fish bones make the cat bigger; a bigger cat survives a pigeon but
-        shrinks. The speed grows by 0.001 per step, up to a maximum of 13.
+        <kbd>P</kbd>, sound on or off with <kbd>M</kbd>. Every 3 fish bones make the cat bigger; a
+        bigger cat survives a pigeon but shrinks. The speed grows by 0.001 per step, up to a maximum
+        of 13.
       </p>
 
       <canvas id="playfield" width="720" height="200" tabindex="0"
@@ -27,6 +28,7 @@
         <input id="slider" type="range" min="1" max="13" step="0.5" value="6" />
         <output id="readout" for="slider">6.000</output>
         <meter id="gauge" min="0" max="13" value="6" aria-label="Speed up to the maximum of 13"></meter>
+        <button id="sound" type="button" aria-pressed="true">Sound: on</button>
       </div>
       <p id="status" aria-live="polite">Jump to start.</p>
 

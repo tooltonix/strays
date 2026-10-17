@@ -96,8 +96,8 @@ Two limits, both from the current playfield (200 px high, ground at y = 170):
 
 ## Sound and effects
 
-- Growing plays the treat cue twice in a row (03); shrinking gets its own cue, to be added to spec
-  03 and tried on the sound check page before it is built.
+- Growing plays the treat cue twice in a row (03); shrinking has its own cue (03), built as a
+  proposal and waiting for a listening test.
 - With `prefers-reduced-motion`, the size change is instant and the cat does not blink; it is
   drawn at 50 % opacity during the protected second instead.
 

@@ -36,6 +36,23 @@
   const PROTECT_STEPS = 60; // after absorbing a pigeon, pigeons pass through for 1 s
   const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const HIGH_SCORE_KEY = 'strays.highScore';
+  const SOUND_KEY = 'strays.sound';
+  // Sound cues (specs/03-sound.md): notes with an offset `at` in seconds, levels below master gain
+  const CUES = {
+    jump: [{ type: 'square', from: 380, to: 760, dur: 0.12, level: 0.5 }],
+    land: [{ type: 'sine', from: 150, to: 90, dur: 0.06, level: 0.6 }],
+    treat: [
+      { type: 'triangle', from: 1320, dur: 0.07, level: 0.7 },
+      { type: 'triangle', from: 1760, at: 0.075, dur: 0.07, level: 0.7 },
+    ],
+    milestone: [660, 880, 1320].map((from, i) => ({ type: 'triangle', from, at: i * 0.09, dur: 0.09, level: 0.6 })),
+    crash: [{ type: 'sawtooth', from: 440, to: 110, dur: 0.28, level: 0.45 }],
+    // Follows the crash cue, so it starts once that one is over
+    record: [523, 659, 784, 1047].map((from, i) => ({ type: 'square', from, at: 0.3 + i * 0.072, dur: 0.07, level: 0.4 })),
+    shrink: [{ type: 'triangle', from: 880, to: 330, dur: 0.2, level: 0.6 }],
+  };
+  CUES.grow = [...CUES.treat, ...CUES.treat.map((note) => ({ ...note, at: (note.at ?? 0) + 0.16 }))];
+  const MASTER_GAIN = 0.15;
 
   const playfield = document.getElementById('playfield');
   const ctx = playfield.getContext('2d');
@@ -43,6 +60,7 @@
   const readout = document.getElementById('readout');
   const gauge = document.getElementById('gauge');
   const status = document.getElementById('status');
+  const soundButton = document.getElementById('sound');
 
   const state = {
     phase: 'ready', // ready | running | paused | over
@@ -63,6 +81,7 @@
     size: 0, // index into SIZES
     protectSteps: 0,
     steps: 0, // simulation steps in this run
+    milestone: 0, // thousands of points reached in this run
     distanceToNext: 0,
     groundOffset: 0,
   };
@@ -82,6 +101,7 @@
     state.size = 0;
     state.protectSteps = 0;
     state.steps = 0;
+    state.milestone = 0;
     state.distanceToNext = 300;
     state.cat.y = GROUND_Y;
     state.cat.vy = 0;
@@ -99,7 +119,10 @@
       restart();
       return;
     }
-    if (state.cat.y >= GROUND_Y) state.cat.vy = JUMP_VELOCITY;
+    if (state.cat.y >= GROUND_Y) {
+      state.cat.vy = JUMP_VELOCITY;
+      playCue('jump');
+    }
   }
 
   function fastFall() {
@@ -160,6 +183,9 @@
       state.size += 1;
       state.growth = 0;
       announce('Bigger!');
+      playCue('grow');
+    } else {
+      playCue('treat');
     }
   }
 
@@ -170,11 +196,13 @@
     let gravity = GRAVITY;
     if (cat.fastFall) gravity *= FAST_FALL_GRAVITY;
     else if (cat.vy < 0 && !state.jumpHeld) gravity *= SHORT_JUMP_GRAVITY;
+    const wasInAir = cat.y < GROUND_Y;
     cat.vy += gravity;
     cat.y = Math.min(GROUND_Y, cat.y + cat.vy);
     if (cat.y === GROUND_Y) {
       cat.vy = 0;
       cat.fastFall = false;
+      if (wasInAir) playCue('land');
     }
     // The drawn size blends towards the current size; the hitbox uses the current size at once
     const target = SIZES[state.size];
@@ -221,6 +249,7 @@
       state.protectSteps = PROTECT_STEPS;
       hit.fleeing = true;
       announce('Hit a pigeon – smaller again.');
+      playCue('shrink');
     } else if (hit) {
       gameOver();
       return;
@@ -230,6 +259,11 @@
     if (state.speed < RULE.maximum) state.speed += RULE.incrementPerStep;
 
     state.score += state.speed / 10;
+    const milestone = Math.floor(state.score / 1000);
+    if (milestone > state.milestone) {
+      state.milestone = milestone;
+      playCue('milestone');
+    }
     state.groundOffset = (state.groundOffset + state.speed) % 24;
   }
 
@@ -243,6 +277,8 @@
       state.highScore = points;
       saveHighScore(points);
     }
+    playCue('crash');
+    if (state.newRecord) playCue('record');
     const verdict = state.newRecord ? 'New record!' : 'Ouch!';
     const treats = `${state.treats} ${state.treats === 1 ? 'treat' : 'treats'}`;
     announce(`${verdict} ${points} points, ${treats}, size ${state.size}, at speed ${state.speed.toFixed(3)}. Jump to restart.`);
@@ -292,6 +328,85 @@
     } catch {
       // Storage blocked: keep the best score for this visit only
     }
+  }
+
+  // --- Sound: short blips made with Web Audio, no audio files ---
+  const sound = { on: loadSound(), context: null, master: null, jumpNotes: [], played: {} };
+
+  function loadSound() {
+    try {
+      return localStorage.getItem(SOUND_KEY) !== 'off';
+    } catch {
+      return true;
+    }
+  }
+
+  function saveSound() {
+    try {
+      localStorage.setItem(SOUND_KEY, sound.on ? 'on' : 'off');
+    } catch {
+      // Storage blocked: the setting lasts for this visit only
+    }
+  }
+
+  // Browsers only allow audio after a user input, so this runs from the input handlers
+  function startAudio() {
+    if (sound.context || !sound.on) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return; // no Web Audio: the game stays silent
+    try {
+      sound.context = new AudioContext();
+      sound.master = sound.context.createGain();
+      sound.master.gain.value = MASTER_GAIN;
+      sound.master.connect(sound.context.destination);
+    } catch {
+      sound.context = null;
+    }
+  }
+
+  function playCue(name) {
+    if (!sound.on || !sound.context) return;
+    if (sound.context.state === 'suspended') sound.context.resume();
+    const start = sound.context.currentTime + 0.01;
+    if (name === 'jump') {
+      // Fast repeated jumps never stack: the previous jump cue stops
+      for (const note of sound.jumpNotes) {
+        try { note.stop(); } catch { /* already over */ }
+      }
+    }
+    const notes = CUES[name].map((note) => playNote(note, start));
+    if (name === 'jump') sound.jumpNotes = notes;
+    sound.played[name] = (sound.played[name] ?? 0) + 1;
+  }
+
+  // One note: 8 ms attack, exponential glide and decay to silence
+  function playNote({ type, from, to = from, at = 0, dur, level }, start) {
+    const t = start + at;
+    const oscillator = sound.context.createOscillator();
+    const gain = sound.context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(from, t);
+    if (to !== from) oscillator.frequency.exponentialRampToValueAtTime(to, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(level, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    oscillator.connect(gain).connect(sound.master);
+    oscillator.start(t);
+    oscillator.stop(t + dur + 0.02);
+    return oscillator;
+  }
+
+  function toggleSound() {
+    sound.on = !sound.on;
+    saveSound();
+    startAudio();
+    updateSoundButton();
+    announce(sound.on ? 'Sound on.' : 'Sound off.');
+  }
+
+  function updateSoundButton() {
+    soundButton.textContent = `Sound: ${sound.on ? 'on' : 'off'}`;
+    soundButton.setAttribute('aria-pressed', String(sound.on));
   }
 
   // --- Drawing ---
@@ -457,13 +572,21 @@
     updateReadout();
   });
 
+  soundButton.addEventListener('click', toggleSound);
+
   // --- Input ---
   document.addEventListener('keydown', (event) => {
+    startAudio();
     if (event.code === 'KeyP' && !event.repeat) {
       togglePause();
       return;
     }
-    if (event.target === slider) return;
+    if (event.code === 'KeyM' && !event.repeat) {
+      toggleSound();
+      return;
+    }
+    // The slider and the sound button use these keys themselves
+    if (event.target === slider || event.target === soundButton) return;
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
       // A held key repeats; it must not jump again on landing
@@ -484,6 +607,7 @@
   });
   playfield.addEventListener('pointerdown', (event) => {
     event.preventDefault();
+    startAudio();
     // preventScroll: focusing a partly hidden canvas must not scroll the page
     playfield.focus({ preventScroll: true });
     state.jumpHeld = true;
@@ -556,8 +680,11 @@
     get obstacleTypes() { return [...state.seenTypes]; },
     get score() { return Math.floor(state.score); },
     get highScore() { return state.highScore; },
+    get sound() { return sound.on; },
+    get cuesPlayed() { return { ...sound.played }; },
   };
 
   updateReadout();
+  updateSoundButton();
   requestAnimationFrame(loop);
 })();

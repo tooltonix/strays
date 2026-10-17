@@ -227,6 +227,7 @@ const play = (ms, options = {}) =>
             fishOverlaps,
             absorbs,
             rammedAtStartSize,
+            cues: strays.cuesPlayed,
           });
         })(start);
       }),
@@ -246,6 +247,29 @@ const ramming = await play(240000, { fish: true, ram: true });
 await runs.screenshot({ path: `${folder}/09-rammed.png` });
 await runs.keyboard.press('Space'); // restart
 ramming.afterRestart = await runs.evaluate(() => ({ treats: strays.treats, size: strays.size, phase: strays.phase }));
+
+// Sound: cues play on events, M and the button toggle, the setting survives a reload
+const audio = await browser.newPage({ viewport: { width: 800, height: 520 } });
+audio.on('pageerror', (e) => errors.push(`sound: ${e}`));
+audio.on('console', (m) => m.type() === 'error' && errors.push(`sound: ${m.text()}`));
+await audio.goto('http://127.0.0.1:8766/');
+const soundState = () => audio.evaluate(() => ({ on: strays.sound, cues: strays.cuesPlayed }));
+await audio.locator('#playfield').click(); // start
+await audio.waitForTimeout(200);
+await audio.keyboard.press('Space');
+await audio.waitForTimeout(800); // up and down again
+const soundOn = await soundState();
+await audio.keyboard.press('KeyM');
+const afterM = await soundState();
+await audio.keyboard.press('Space');
+await audio.waitForTimeout(800);
+const mutedJump = await soundState();
+await audio.locator('#sound').click();
+const afterButton = { ...(await soundState()), label: await audio.locator('#sound').textContent() };
+await audio.keyboard.press('KeyM');
+await audio.reload();
+const soundReloaded = { ...(await soundState()), label: await audio.locator('#sound').textContent() };
+const sound = { soundOn, afterM, mutedJump, afterButton, soundReloaded };
 
 // High score: kept across a reload
 await page.reload();
@@ -282,6 +306,7 @@ console.log(
       jumpControl,
       obstacles,
       ramming,
+      sound,
       reloaded,
       storageBlocked,
       errors,
