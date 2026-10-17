@@ -44,7 +44,7 @@ bridge for the borrowed rule; everything in this folder is an original design.
 | 06 | [High score](06-highscore.md) | Gameplay | done |
 | 07 | [Jump control](07-jump-control.md) | Gameplay | done |
 | 08 | [More obstacles](08-obstacles.md) | Gameplay | done |
-| 09 | [Treats](09-treats.md) | Gameplay | planned |
+| 09 | [Treats and growing](09-treats.md) | Gameplay | planned |
 
 ## Recommended order
 
