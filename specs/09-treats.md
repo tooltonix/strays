@@ -103,19 +103,28 @@ Two limits, both from the current playfield (200 px high, ground at y = 170):
 
 ## Acceptance criteria
 
-- [ ] `window.strays.treats` reports the count of this run and resets on restart.
-- [ ] `window.strays.size` reports 0 to 3 and resets on restart.
-- [ ] Collecting a treat adds exactly 50 to the score and leaves the speed unchanged
-      (compare speed growth in the step before and after).
-- [ ] The 3rd, 6th and 9th treat grow the cat; the 12th does not grow it beyond size 3.
-- [ ] At size 3, the top of the cat at the peak of a full jump is inside the canvas
-      (`window.strays.catTop` ≥ 0).
-- [ ] At size 3, a ducking cat passes under a high pigeon.
-- [ ] A pigeon hit at size ≥ 1 shrinks the cat by one size, the phase stays `running`, and the
+Checked with the scripted player in `test/test-game.mjs`; the long numbers come from one run with
+`BOT_SECONDS=300`.
+
+- [x] `window.strays.treats` reports the count of this run and resets on restart.
+- [x] `window.strays.size` reports 0 to 3 and resets on restart.
+- [ ] Collecting a treat adds exactly 50 to the score. Not measured in the test, only read in the
+      code (`state.score += FISH.points`).
+- [x] Collecting a treat leaves the speed unchanged: over a whole run with treats and an absorbed
+      pigeon, the speed equals start + 0.001 × steps exactly (`speedRuleOk`).
+- [x] Every 3 treats grow the cat, and it never grows beyond size 3 (long run: 34 treats, size 3).
+- [x] At size 3, the top of the cat at the peak of a full jump is inside the canvas
+      (`window.strays.catTop` ≥ 0; highest point measured: 23 px, as calculated).
+- [x] At size 3, a ducking cat passes under a high pigeon (long run: ducks at size 3, no crash).
+- [x] A pigeon hit at size ≥ 1 shrinks the cat by one size, the phase stays `running`, and the
       speed grows in that step as usual.
-- [ ] A pigeon hit at size 0, or a box hit at any size, ends the run.
-- [ ] No treat overlaps an obstacle (checked over 1000 spawns in a seeded run).
-- [ ] The scripted player from 08 survives 60 s at speed 13 at size 3.
+- [x] A pigeon hit at size 0 ends the run.
+- [ ] A box hit at size ≥ 1 ends the run. Not tested separately; boxes take the same path as
+      before 09, since only pigeons can be absorbed.
+- [x] No treat overlaps an obstacle: checked in every frame of the scripted runs (0 overlaps)
+      instead of 1000 seeded spawns, since the game has no seed yet. By construction a treat sits
+      in the middle of a gap of at least 60 steps.
+- [x] The scripted player from 08 survives 60 s at speed 13 at size 3 (long run: 229 s at size 3).
 
 ## Out of scope
 

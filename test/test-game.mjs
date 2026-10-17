@@ -208,7 +208,12 @@ const play = (ms, options = {}) =>
           }
           if (strays.phase === 'running' && now - start < ms) return requestAnimationFrame(tick);
           if (biggestSince !== null) secondsAtMaxSize += (now - biggestSince) / 1000;
+          // Rule 2 over the whole run, fish and absorbed pigeons included (the step that ends a run
+          // does not grow the speed); only meaningful below the maximum
+          const grownSteps = strays.phase === 'over' ? strays.steps - 1 : strays.steps;
+          const expected = startSpeed + grownSteps * 0.001;
           done({
+            speedRuleOk: expected < 12.99 ? Math.abs(strays.speed - expected) < 1e-6 : null,
             phase: strays.phase,
             seconds: Math.round((now - start) / 1000),
             speed: strays.speed,
@@ -239,6 +244,8 @@ const obstacles = { slow, fast };
 await startRun(9);
 const ramming = await play(240000, { fish: true, ram: true });
 await runs.screenshot({ path: `${folder}/09-rammed.png` });
+await runs.keyboard.press('Space'); // restart
+ramming.afterRestart = await runs.evaluate(() => ({ treats: strays.treats, size: strays.size, phase: strays.phase }));
 
 // High score: kept across a reload
 await page.reload();
